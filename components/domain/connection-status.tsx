@@ -1,4 +1,4 @@
-import { CloudOff, RefreshCw, Check } from "lucide-react";
+import { CloudOff, RefreshCw } from "lucide-react";
 export function ConnectionStatus({
   message,
   compact = false,
@@ -8,15 +8,15 @@ export function ConnectionStatus({
 }) {
   const ok = message === "Tersinkron dengan server";
   const offline = message.startsWith("Offline");
-  const Icon = ok ? Check : offline ? CloudOff : RefreshCw;
+  if (!message || ok) return null;
+  const Icon = offline ? CloudOff : RefreshCw;
   return (
     <p
       role="status"
-      title={ok && compact ? message : undefined}
-      className={`flex min-h-5 items-center gap-1.5 text-xs leading-relaxed ${ok ? (compact ? "text-success" : "text-muted-foreground") : compact ? "rounded-xl border border-warning/20 bg-warning-subtle px-3 py-2.5 text-warning" : "text-warning"}`}
+      className={`flex min-h-5 items-center gap-1.5 text-xs leading-relaxed ${compact ? "rounded-xl border border-warning/20 bg-warning-subtle px-3 py-2.5 text-warning" : "text-warning"}`}
     >
       <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-      <span className={ok && compact ? "sr-only" : undefined}>{message}</span>
+      <span>{message}</span>
     </p>
   );
 }

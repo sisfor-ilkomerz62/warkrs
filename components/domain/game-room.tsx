@@ -32,7 +32,7 @@ import { StatusBadge } from "./status-badge";
 import { ConnectionStatus } from "./connection-status";
 import { api } from "@/lib/api-client";
 import { jakarta } from "@/lib/time";
-import { consentNoticeFor } from "@/modules/games/terms";
+import { warRules, consentNoticeFor } from "@/modules/games/terms";
 import type { GameStatus } from "@/modules/games/status";
 export type RoomGame = {
   id: string;
@@ -93,7 +93,6 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {!stale && <ConnectionStatus message={connection} compact />}
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -148,9 +147,12 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                   className="size-4 text-muted-foreground"
                   aria-hidden="true"
                 />
-                Privasi dan pengiriman
+                Aturan War
               </h2>
-              <p className="text-sm leading-7 text-muted-foreground">
+              <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed">
+                {warRules.map((rule) => <li key={rule}>{rule}</li>)}
+              </ol>
+              <p className="mt-4 border-t pt-3 text-xs leading-relaxed text-muted-foreground">
                 {consentNoticeFor(game.termsVersion)}
               </p>
             </div>
@@ -166,10 +168,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                 htmlFor="consent"
                 className="cursor-pointer text-sm font-normal leading-7"
               >
-                Saya telah membaca dan menyetujui ketentuan serta pemberitahuan
-                nama lengkap
-                {game.termsVersion.startsWith("nim-v2:") ? " dan NIM" : ""} di
-                atas.
+                Saya telah membaca, memahami, dan menyetujui aturan serta mekanisme alokasi War.
               </Label>
             </div>
             <Button

@@ -52,6 +52,10 @@ async function accessibility(page: Page) {
   ).toEqual([]);
 }
 async function join(page: Page) {
+  await expect(page.getByRole("heading", { name: "Aturan War", exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox")).toHaveAccessibleName("Saya telah membaca, memahami, dan menyetujui aturan serta mekanisme alokasi War.");
+  await expect(page.getByText("Menghubungkan…", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Tersinkron dengan server", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Gabung War" })).toBeDisabled();
   await expect(page.getByRole("checkbox")).not.toBeChecked();
   await page.getByRole("checkbox").check();
@@ -74,6 +78,25 @@ async function rank(page: Page) {
     page.getByRole("button", { name: "Kirim urutan paket" }),
   ).toBeEnabled();
 }
+test("initial synchronization stays quiet and keeps join disabled", async ({ page }) => {
+  await login(page);
+  const game = fixtures.upcoming;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/games/${game.id}`, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.goto(`/games/${game.id}`);
+  try {
+    await page.getByRole("checkbox").check();
+    await expect(page.getByRole("button", { name: "Gabung War" })).toBeDisabled();
+    await expect(page.getByText("Menghubungkan…", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Tersinkron dengan server", { exact: true })).toHaveCount(0);
+  } finally { release(); }
+  await expect(page.getByRole("button", { name: "Gabung War" })).toBeEnabled();
+});
+
 test("activation once, Indonesian login and protected routes", async ({
   page,
 }) => {
