@@ -6,9 +6,9 @@ export async function PublicShell({ children }: { children: React.ReactNode }) {
   const actor = await optionalPageActor();
   const destination = actorHome(actor);
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="group/public flex min-h-dvh flex-col">
       <header className="border-b bg-card">
-        <div className="mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-18 group-has-[[data-login]]/public:h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Brand href={actor ? destination : "/"} />
           <Button variant="ghost" asChild>
             <Link href={destination}>{actor ? "Buka dashboard" : "Masuk"}</Link>
@@ -17,11 +17,11 @@ export async function PublicShell({ children }: { children: React.ReactNode }) {
       </header>
       <main
         id="konten"
-        className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-10 sm:px-6 sm:py-16"
+        className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-10 sm:px-6 sm:py-16 group-has-[[data-login]]/public:py-3"
       >
         {children}
       </main>
-      <footer className="border-t px-5 py-5 text-center text-xs leading-relaxed text-muted-foreground">
+      <footer className="border-t px-5 py-5 group-has-[[data-login]]/public:py-2 text-center text-xs leading-relaxed text-muted-foreground">
         <p>War KRS Ilkomerz 62</p>
       </footer>
     </div>

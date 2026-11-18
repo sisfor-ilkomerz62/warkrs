@@ -39,13 +39,13 @@ export function AuthForm({
     "forgot-password": "Pulihkan akun",
   }[mode];
   return (
-    <Card className="mx-auto w-full max-w-md shadow-xs">
+    <Card data-login={mode === "login" ? "" : undefined} className={mode === "login" ? "mx-auto w-full max-w-md shadow-xs [--card-spacing:--spacing(3)]" : "mx-auto w-full max-w-md shadow-xs"}>
       <CardHeader>
-        <span className="mb-3 flex size-11 items-center justify-center rounded-lg bg-accent text-primary">
+        <span className={`${mode === "login" ? "mb-1 size-9" : "mb-3 size-11"} flex items-center justify-center rounded-lg bg-accent text-primary`}>
           <LockKeyhole className="size-5" aria-hidden="true" />
         </span>
         <CardTitle>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className={mode === "login" ? "text-xl font-semibold tracking-tight" : "text-2xl font-semibold tracking-tight"}>{title}</h1>
         </CardTitle>
         <CardDescription>
           {mode === "login"
@@ -57,7 +57,7 @@ export function AuthForm({
       </CardHeader>
       <CardContent>
         <form
-          className="space-y-5"
+          className={mode === "login" ? "space-y-3" : "space-y-5"}
           onSubmit={async (event) => {
             event.preventDefault();
             if (pending) return;
