@@ -483,10 +483,8 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
     )
       .toISOString()
       .slice(0, 10);
-    await page.getByLabel("Jam mulai", { exact: true }).click();
-    await page.getByRole("option", { name: "23", exact: true }).click();
-    await page.getByLabel("Menit mulai", { exact: true }).click();
-    await page.getByRole("option", { name: "59", exact: true }).click();
+    { const time = page.getByLabel("Waktu mulai", { exact: true }); await time.fill("23:" + (await time.inputValue()).split(":")[1]); }
+    { const time = page.getByLabel("Waktu mulai", { exact: true }); await time.fill((await time.inputValue()).split(":")[0] + ":59"); }
     await page.getByRole("button", { name: /Tanggal selesai/ }).click();
     const day = new Date(`${nextDay}T12:00:00-05:00`);
     const label = new Intl.DateTimeFormat("id-ID", {
@@ -497,10 +495,8 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
       timeZone: "America/New_York",
     }).format(day);
     await page.getByRole("button", { name: label, exact: true }).click();
-    await page.getByLabel("Jam selesai", { exact: true }).click();
-    await page.getByRole("option", { name: "00", exact: true }).click();
-    await page.getByLabel("Menit selesai", { exact: true }).click();
-    await page.getByRole("option", { name: "00", exact: true }).click();
+    { const time = page.getByLabel("Waktu selesai", { exact: true }); await time.fill("00:" + (await time.inputValue()).split(":")[1]); }
+    { const time = page.getByLabel("Waktu selesai", { exact: true }); await time.fill((await time.inputValue()).split(":")[0] + ":00"); }
     const changedRequest = page.waitForRequest(
       (r) =>
         r.method() === "PATCH" &&
@@ -517,17 +513,10 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
       page.getByRole("status").filter({ hasText: "Draf tersimpan" }),
     ).toBeVisible();
     await page.reload();
-    await expect(page.getByLabel("Jam mulai", { exact: true })).toContainText(
-      "23",
-    );
-    await expect(page.getByLabel("Menit mulai", { exact: true })).toContainText(
-      "59",
-    );
+    await expect(page.getByLabel("Waktu mulai", { exact: true })).toHaveValue("23:59");
     // Invalid end-before-start remains a client error, never a changed contract.
-    await page.getByLabel("Jam mulai", { exact: true }).click();
-    await page.getByRole("option", { name: "00", exact: true }).click();
-    await page.getByLabel("Jam selesai", { exact: true }).click();
-    await page.getByRole("option", { name: "23", exact: true }).click();
+    { const time = page.getByLabel("Waktu mulai", { exact: true }); await time.fill("00:" + (await time.inputValue()).split(":")[1]); }
+    { const time = page.getByLabel("Waktu selesai", { exact: true }); await time.fill("23:" + (await time.inputValue()).split(":")[1]); }
     await page.getByRole("button", { name: /Tanggal selesai/ }).click();
     const previous = new Date(`${localDay}T12:00:00-05:00`);
     const previousLabel = new Intl.DateTimeFormat("id-ID", {
@@ -540,8 +529,7 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
     await page
       .getByRole("button", { name: previousLabel, exact: true })
       .click();
-    await page.getByLabel("Jam mulai", { exact: true }).click();
-    await page.getByRole("option", { name: "23", exact: true }).click();
+    { const time = page.getByLabel("Waktu mulai", { exact: true }); await time.fill("23:" + (await time.inputValue()).split(":")[1]); }
     await page.getByRole("button", { name: "Simpan draf" }).click();
     await expect(
       page
@@ -579,10 +567,21 @@ test("new War starts with empty dates and saves then publishes the existing payl
   await page.setViewportSize({ width: 375, height: 950 });
   await login(page, fixtures.admin);
   await page.goto("/admin/games/new");
-  await expect(page.getByLabel("Jam mulai", { exact: true })).toBeDisabled();
+  await expect(page.getByLabel("Waktu mulai", { exact: true })).toBeDisabled();
   await expect(
-    page.getByLabel("Menit selesai", { exact: true }),
+    page.getByLabel("Waktu selesai", { exact: true }),
   ).toBeDisabled();
+  const quota = page.getByLabel("Kuota", { exact: true }).first();
+  await quota.fill("");
+  await expect(quota).toHaveValue("");
+  await quota.fill("00025");
+  await expect(quota).toHaveValue("25");
+  await quota.fill("abc");
+  await expect(quota).toHaveValue("25");
+  await quota.fill("0");
+  await page.getByRole("button", { name: "Simpan draf" }).click();
+  await expect(quota).toHaveAttribute("aria-invalid", "true");
+  await quota.fill("1");
   await page
     .getByLabel("Judul War")
     .fill("Fiksi pembuatan dari formulir kosong");
@@ -608,17 +607,16 @@ test("new War starts with empty dates and saves then publishes the existing payl
       await page.getByRole("button", { name: "Bulan berikutnya" }).click();
     }
     await page.getByRole("button", { name: dateLabel, exact: true }).click();
-    await expect(page.getByLabel(`Jam ${name}`, { exact: true })).toContainText(
-      "00",
-    );
-    await expect(
-      page.getByLabel(`Menit ${name}`, { exact: true }),
-    ).toContainText("00");
+    await expect(page.getByLabel(`Waktu ${name}`, { exact: true })).toHaveValue("00:00");
   }
-  await page.getByLabel("Jam selesai", { exact: true }).click();
-  await page.getByRole("option", { name: "23", exact: true }).click();
-  await page.getByLabel("Menit selesai", { exact: true }).click();
-  await page.getByRole("option", { name: "59", exact: true }).click();
+  { const time = page.getByLabel("Waktu selesai", { exact: true }); await time.fill("23:" + (await time.inputValue()).split(":")[1]); }
+  { const time = page.getByLabel("Waktu selesai", { exact: true }); await time.fill((await time.inputValue()).split(":")[0] + ":59"); }
+  const endTime = page.getByLabel("Waktu selesai", { exact: true });
+  await endTime.fill("24:00");
+  await endTime.blur();
+  await expect(endTime).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("alert").filter({ hasText: "Gunakan format HH:mm" })).toBeVisible();
+  await endTime.fill("23:59");
   await page
     .getByLabel("Ketentuan yang perlu disetujui peserta")
     .fill("Ketentuan pengujian formulir dan publikasi War.");

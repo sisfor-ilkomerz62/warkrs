@@ -29,8 +29,9 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, ApiError } from "@/lib/api-client";
-import { jakartaInput, fromJakartaInput } from "@/lib/time";
+import { jakartaInput } from "@/lib/time";
 import { GameDateTimeField } from "./game-date-time-field";
+import { quotaDigits, warDatePayload } from "@/lib/game-form-values";
 type Draft = {
   id: string;
   title: string;
@@ -59,7 +60,7 @@ export function GameEditor({
   const [terms, setTerms] = useState(draft?.termsText ?? "");
   const [start, setStart] = useState(draft ? jakartaInput(draft.startsAt) : "");
   const [end, setEnd] = useState(draft ? jakartaInput(draft.endsAt) : "");
-  const [ps, setPs] = useState(draft?.packages ?? [{ name: "", capacity: 1 }]);
+  const [ps, setPs] = useState(draft?.packages.map(p => ({ ...p, capacity: String(p.capacity) })) ?? [{ name: "", capacity: "1" }]);
   const [ids, setIds] = useState<string[]>(draft?.userIds ?? []);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(100);
@@ -77,10 +78,8 @@ export function GameEditor({
       .includes(search.toLowerCase()),
   );
   function payload() {
-    const convert = (value: string) => {
-      try { return fromJakartaInput(value); } catch { return ""; }
-    };
-    return { title, termsText: terms, startsAt: convert(start), endsAt: convert(end), packages: ps, userIds: ids };
+    return { title, termsText: terms, startsAt: warDatePayload(start), endsAt: warDatePayload(end),
+      packages: ps.map(p => ({ ...p, capacity: Number(p.capacity) })), userIds: ids };
   }
   const ready = publicationInput.safeParse(payload()).success;
   return (
@@ -218,7 +217,7 @@ export function GameEditor({
                 size="sm"
                 disabled={pending || ps.length >= 50}
                 onClick={() => {
-                  setPs([...ps, { name: "", capacity: 1 }]);
+                  setPs([...ps, { name: "", capacity: "1" }]);
                   setSaved(false);
                 }}
               >
@@ -262,18 +261,19 @@ export function GameEditor({
                   <Input
                     {...invalid(`packages.${i}.capacity`)}
                     id={`quota-${i}`}
-                    type="number"
+                    type="text"
                     inputMode="numeric"
                     value={p.capacity}
-                    min={1}
-                    max={100000}
+                    pattern="[0-9]*"
                     disabled={pending}
                     required
                     onChange={(e) => {
+                      const digits = quotaDigits(e.target.value);
+                      if (digits === null) return;
                       setPs(
                         ps.map((v, j) =>
                           j === i
-                            ? { ...v, capacity: Number(e.target.value) }
+                            ? { ...v, capacity: digits }
                             : v,
                         ),
                       );

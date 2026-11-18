@@ -10,18 +10,9 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-const hours = Array.from({ length: 24 }, (_, n) => String(n).padStart(2, "0"));
-const minutes = Array.from({ length: 60 }, (_, n) =>
-  String(n).padStart(2, "0"),
-);
+import { validWarTime } from "@/lib/game-form-values";
 // Value is a Jakarta wall-clock string, exactly like the former datetime-local.
 // Only lib/time.fromJakartaInput converts it into an authoritative UTC payload.
 export function GameDateTimeField({
@@ -43,7 +34,11 @@ export function GameDateTimeField({
 }) {
   const [open, setOpen] = useState(false);
   const [day, time] = value.split("T");
-  const [hour = "00", minute = "00"] = (time || "00:00").split(":");
+  const [touched, setTouched] = useState(false);
+  const timeError = touched && day && !validWarTime(time ?? "")
+    ? "Gunakan format HH:mm: jam 00–23 dan menit 00–59."
+    : undefined;
+  const feedback = timeError || error;
   const parts = day?.split("-").map(Number);
   const selected =
     parts?.length === 3
@@ -66,7 +61,7 @@ export function GameDateTimeField({
                 className="h-11 w-full justify-start px-3 text-left font-normal"
                 disabled={disabled}
                 aria-invalid={invalid}
-                aria-describedby={`${id}-zone${error ? ` ${id}-error` : ""}`}
+                aria-describedby={`${id}-zone${feedback ? ` ${id}-error` : ""}`}
               >
                 <CalendarDays
                   className="size-4 shrink-0 text-muted-foreground"
@@ -104,7 +99,7 @@ export function GameDateTimeField({
                 }}
                 onSelect={(date) => {
                   if (date) {
-                    onChange(`${format(date, "yyyy-MM-dd")}T${hour}:${minute}`);
+                    onChange(`${format(date, "yyyy-MM-dd")}T${time ?? "00:00"}`);
                     setOpen(false);
                   }
                 }}
@@ -112,55 +107,26 @@ export function GameDateTimeField({
             </PopoverContent>
           </Popover>
         </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <Select
+        <div className="min-w-0 space-y-2">
+          <Label htmlFor={`${id}-time`} className="sr-only">Waktu {label.toLowerCase()}</Label>
+          <Input
+            id={`${id}-time`}
+            type="text"
+            placeholder="HH:mm"
+            maxLength={5}
+            autoComplete="off"
+            spellCheck={false}
+            className="h-11 min-w-0 min-[420px]:w-28 xl:w-full 2xl:w-28"
             disabled={disabled || !day}
-            value={day ? hour : undefined}
-            onValueChange={(h) => onChange(`${day}T${h}:${minute}`)}
-          >
-            <SelectTrigger
-              aria-invalid={invalid}
-              aria-describedby={error ? `${id}-error` : undefined}
-              aria-label={`Jam ${label.toLowerCase()}`}
-              className="h-11! min-w-0 flex-1 bg-card"
-            >
-              <SelectValue placeholder="Jam" />
-            </SelectTrigger>
-            <SelectContent position="popper" className="max-h-64">
-              {hours.map((h) => (
-                <SelectItem key={h} value={h}>
-                  {h}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-muted-foreground" aria-hidden="true">
-            :
-          </span>
-          <Select
-            disabled={disabled || !day}
-            value={day ? minute : undefined}
-            onValueChange={(m) => onChange(`${day}T${hour}:${m}`)}
-          >
-            <SelectTrigger
-              aria-invalid={invalid}
-              aria-describedby={error ? `${id}-error` : undefined}
-              aria-label={`Menit ${label.toLowerCase()}`}
-              className="h-11! min-w-0 flex-1 bg-card"
-            >
-              <SelectValue placeholder="Menit" />
-            </SelectTrigger>
-            <SelectContent position="popper" className="max-h-64">
-              {minutes.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            value={day ? time ?? "00:00" : ""}
+            aria-invalid={invalid || Boolean(timeError)}
+            aria-describedby={`${id}-zone${feedback ? ` ${id}-error` : ""}`}
+            onBlur={() => setTouched(true)}
+            onChange={(event) => onChange(`${day}T${event.target.value}`)}
+          />
         </div>
       </div>
-      {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
+      {feedback && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{feedback}</p>}
       <input type="hidden" name={id} value={value} />
       <p id={`${id}-zone`} className="text-xs text-muted-foreground">
         WIB · Asia/Jakarta
