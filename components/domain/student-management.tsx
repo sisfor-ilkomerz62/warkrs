@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { fieldErrors } from "@/lib/form-errors";
 import { FieldError } from "./field-error";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Mail } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Mail } from "lucide-react";
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -53,6 +53,7 @@ import {
 } from "./student-import";
 import { studentInput } from "@/lib/account-validation";
 import { api, ApiError } from "@/lib/api-client";
+import { sortStudents, type StudentSort, type StudentSortKey } from "@/lib/student-sorting";
 export type Student = {
   id: string;
   name: string;
@@ -340,11 +341,12 @@ export function StudentsTable({ students }: { students: Student[] }) {
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(50);
   const [message, setMessage] = useState("");
-  const shown = students.filter((s) =>
+  const [sort, setSort] = useState<StudentSort>({ key: "name", direction: "asc" });
+  const shown = sortStudents(students.filter((s) =>
     `${s.name} ${s.nim ?? ""} ${s.email}`
       .toLowerCase()
       .includes(search.trim().toLowerCase()),
-  );
+  ), sort);
   return (
     <Card className="overflow-hidden py-0">
       <CardContent className="space-y-4 px-0">
@@ -380,10 +382,23 @@ export function StudentsTable({ students }: { students: Student[] }) {
         <Table className="min-w-[52rem]">
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="pl-4 sm:pl-6">Nama Lengkap</TableHead>
-              <TableHead>NIM</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status Akun</TableHead>
+              {([
+                ["name", "Nama Lengkap"], ["nim", "NIM"],
+                ["email", "Email"], ["active", "Status Akun"],
+              ] satisfies [StudentSortKey, string][]).map(([key, label]) => {
+                const selected = sort.key === key;
+                const Icon = selected ? (sort.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+                return <TableHead key={key} className={key === "name" ? "pl-4 sm:pl-6" : undefined}
+                  aria-sort={selected ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+                  <Button type="button" variant="ghost" size="sm" className="-ml-2"
+                    onClick={() => {
+                      setSort({ key, direction: selected && sort.direction === "asc" ? "desc" : "asc" });
+                      setLimit(50);
+                    }}>
+                    {label}<Icon className="size-4" aria-hidden="true" />
+                  </Button>
+                </TableHead>;
+              })}
               <TableHead className="pr-4 sm:pr-6">Aksi</TableHead>
             </TableRow>
           </TableHeader>

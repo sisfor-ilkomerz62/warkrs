@@ -1049,3 +1049,26 @@ test("Draft, Upcoming and Completed simulation deletion preserves unrelated War"
   await page.goto(`/admin/games/${fixtures.completed.id}`);
   await expect(page.getByRole("heading", { name: fixtures.completed.title, exact: true })).toBeVisible();
 });
+
+test("student table sorts every data column by keyboard in both directions", async ({ page }) => {
+  await login(page, fixtures.admin);
+  await page.goto("/admin/students");
+  await page.getByLabel("Cari nama, NIM, atau email", { exact: true }).fill("Fiksi");
+  const collator = new Intl.Collator("id", { sensitivity: "base", numeric: true });
+  for (const [index, label] of ["Nama Lengkap", "NIM", "Email", "Status Akun"].entries()) {
+    const header = page.getByRole("columnheader").filter({ has: page.getByRole("button", { name: label, exact: true }) });
+    for (let turn = 0; turn < 2; turn++) {
+      await header.getByRole("button").focus();
+      await page.keyboard.press("Enter");
+      const direction = await header.getAttribute("aria-sort");
+      expect(["ascending", "descending"]).toContain(direction);
+      const values = await page.locator("tbody tr").evaluateAll((rows, i) =>
+        rows.map(row => row.querySelectorAll("td")[i].textContent!.trim()), index);
+      const present = index === 1 ? values.filter(v => v !== "Belum diisi") : values;
+      expect(present).toEqual([...present].sort((a, b) =>
+        (direction === "ascending" ? 1 : -1) * collator.compare(a, b)));
+    }
+  }
+  await page.setViewportSize({ width: 320, height: 568 });
+  await noOverflow(page);
+});
