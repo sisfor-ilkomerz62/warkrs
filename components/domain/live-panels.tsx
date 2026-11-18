@@ -378,7 +378,7 @@ export function LivePanels({
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Log aktivitas</h2>
             <p className="section-note">
-              Catatan berurutan dari server. Posisi baca tetap saat ada
+              Catatan terbaru di atas. Posisi baca tetap saat ada
               pembaruan.
             </p>
           </div>
@@ -392,7 +392,7 @@ export function LivePanels({
           aria-label="Catatan aktivitas War"
         >
           <ol className="divide-y">
-            {events.slice(0, visible).map((e) => {
+            {events.slice().reverse().slice(0, visible).map((e) => {
               const view = eventPresentation(e);
               const Icon = view.icon;
               return (

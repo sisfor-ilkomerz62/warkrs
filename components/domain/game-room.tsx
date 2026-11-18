@@ -73,15 +73,15 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
       <section aria-label="Ringkasan War" className="space-y-2">
-        <div className="flex items-start gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="icon"
-            className="size-11 shrink-0 rounded-xl bg-card"
+            className="size-9 shrink-0 rounded-lg bg-card sm:size-11 sm:rounded-xl"
             asChild
           >
             <Link href="/games" aria-label="Kembali ke daftar War">
-              <ArrowLeft className="size-4" aria-hidden="true" />
+              <ArrowLeft className="size-5 sm:size-4" aria-hidden="true" />
             </Link>
           </Button>
           <div className="min-w-0 flex-1 py-1">
