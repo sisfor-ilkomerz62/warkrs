@@ -9,6 +9,8 @@ import {
   reconcileGame,
 } from "../modules/games/lifecycle";
 import { gameDetail } from "../modules/games/detail";
+import { submitRanking } from "../modules/allocation/service";
+import { saveDraft, publishGame } from "../modules/games/admin";
 import { effectiveStatus } from "../modules/games/status";
 import { actor } from "./helpers";
 import { gameFixture } from "./fixtures";
@@ -65,6 +67,37 @@ test("Upcoming and late Live joins need affirmative matching consent, active whi
       code: "FORBIDDEN",
     });
   }
+});
+test("admin participant monitor distinguishes committed submissions, joins and non-joins per game", async () => {
+  const f = await gameFixture({ count: 3, join: false });
+  for (const student of f.students.slice(0, 2)) {
+    await joinGame(student, f.id, {
+      accepted: true,
+      acceptedTermsVersion: f.game.termsVersion,
+    });
+  }
+  const before = await monitorGame(f.admin, f.id);
+  assert.ok(before.members.every((m) => !m.hasSubmitted));
+  await assert.rejects(submitRanking(f.students[1], f.id, []), {
+    code: "INVALID_RANKING",
+  });
+  await submitRanking(f.students[0], f.id, f.packageIds);
+  const after = await monitorGame(f.admin, f.id);
+  for (const [index, student] of f.students.entries()) {
+    const member = after.members.find((m) => m.id === student.id)!;
+    assert.equal(Boolean(member.joinedAt), index < 2);
+    assert.equal(member.hasSubmitted, index === 0);
+  }
+  assert.equal(after.whitelisted, 3);
+  assert.equal(after.joined, 2);
+  assert.equal(after.notJoined, 1);
+  await assert.rejects(monitorGame(f.students[0], f.id), {
+    code: "FORBIDDEN",
+  });
+  const other = await saveDraft(f.admin, f.input);
+  await publishGame(f.admin, other.id);
+  const otherMonitor = await monitorGame(f.admin, other.id);
+  assert.ok(otherMonitor.members.every((m) => !m.hasSubmitted));
 });
 test("manual end shares row lock; required reason and immutable audited closure", async () => {
   const f = await gameFixture({ join: false });

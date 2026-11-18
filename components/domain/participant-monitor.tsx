@@ -14,7 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api-client";
 import { jakarta } from "@/lib/time";
-type Member = { id: string; name: string; joinedAt: string | null };
+type Member = {
+  id: string;
+  name: string;
+  joinedAt: string | null;
+  hasSubmitted: boolean;
+};
 export function ParticipantMonitor({
   id,
   initial,
@@ -81,12 +86,18 @@ export function ParticipantMonitor({
                   <Badge
                     variant="secondary"
                     className={
-                      m.joinedAt
+                      m.hasSubmitted
                         ? "bg-success-subtle text-success"
-                        : "bg-muted text-muted-foreground"
+                        : m.joinedAt
+                          ? "bg-warning-subtle text-warning"
+                          : "bg-muted text-muted-foreground"
                     }
                   >
-                    {m.joinedAt ? "Sudah bergabung" : "Belum bergabung"}
+                    {m.hasSubmitted
+                      ? "Sudah Memilih"
+                      : m.joinedAt
+                        ? "Belum Memilih"
+                        : "Belum Bergabung"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">

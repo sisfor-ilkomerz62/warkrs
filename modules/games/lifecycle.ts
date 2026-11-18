@@ -165,12 +165,15 @@ export async function monitorGame(actor: Actor, id: string) {
   adminOnly(actor);
   await reconcileGame(id);
   const result = await getDb().execute(
-    sql`SELECT p.user_id,u.full_name,p.joined_at FROM game_participants p JOIN users u ON u.id=p.user_id WHERE p.game_id=${id} ORDER BY u.full_name`,
+    sql`SELECT p.user_id,u.full_name,p.joined_at,
+      EXISTS (SELECT 1 FROM war_submissions s WHERE s.game_id=p.game_id AND s.user_id=p.user_id) AS has_submitted
+      FROM game_participants p JOIN users u ON u.id=p.user_id WHERE p.game_id=${id} ORDER BY u.full_name`,
   );
   const members = result.rows.map((r) => ({
     id: String(r.user_id),
     name: String(r.full_name),
     joinedAt: r.joined_at ? new Date(r.joined_at as string) : null,
+    hasSubmitted: r.has_submitted === true,
   }));
   return {
     whitelisted: members.length,

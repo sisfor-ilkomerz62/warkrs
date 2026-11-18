@@ -928,6 +928,9 @@ test("published visibility, direct Live admission, authenticated Excel download 
   await login(page, fixtures.admin);
   const game = fixtures.managementLive;
   await page.goto(`/admin/games/${game.id}`);
+  const participantRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: fixtures.student.name, exact: true }) });
+  const otherParticipantRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: fixtures.second.name, exact: true }) });
+  await expect(participantRow.getByText("Belum Bergabung", { exact: true })).toHaveClass(/bg-muted text-muted-foreground/);
   await expect(page.getByRole("button", { name: "Hapus War Permanen", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Sembunyikan War", exact: true }).click();
   await expect(page.getByRole("button", { name: "Tampilkan War", exact: true })).toBeVisible();
@@ -936,6 +939,7 @@ test("published visibility, direct Live admission, authenticated Excel download 
   const row = page.getByRole("row").filter({ has: page.locator(`a[href="/admin/games/${game.id}"]`) });
   await expect(row.getByText("Disembunyikan", { exact: true })).toBeVisible();
   await expect(row.getByRole("button", { name: "Tampilkan War", exact: true })).toBeVisible();
+  await page.goto(`/admin/games/${game.id}`);
   const studentContext = await browser.newContext();
   try {
     const studentPage = await studentContext.newPage();
@@ -943,15 +947,27 @@ test("published visibility, direct Live admission, authenticated Excel download 
     await expect(studentPage.getByText(game.title, { exact: true })).toHaveCount(0);
     await studentPage.goto(`/games/${game.id}`);
     await join(studentPage);
+    await page.getByRole("button", { name: "Perbarui", exact: true }).click();
+    await expect(participantRow.getByText("Belum Memilih", { exact: true })).toHaveClass(/bg-warning-subtle text-warning/);
+    for (const width of [320, 375, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await noOverflow(page);
+      await expect(participantRow.getByText("Belum Memilih", { exact: true })).toBeVisible();
+    }
+    await accessibility(page);
     await rank(studentPage);
     await studentPage.getByRole("button", { name: "Kirim urutan paket" }).click();
     await expect(studentPage.getByText("Alokasi Anda diterima")).toBeVisible();
+    await page.getByRole("button", { name: "Perbarui", exact: true }).click();
+    await expect(participantRow.getByText("Sudah Memilih", { exact: true })).toHaveClass(/bg-success-subtle text-success/);
+    await expect(otherParticipantRow.getByText("Belum Bergabung", { exact: true })).toHaveClass(/bg-muted text-muted-foreground/);
     const denied = await studentPage.request.get(`/api/admin/games/${game.id}/export`);
     expect(denied.status()).toBe(403);
     const removeDenied = await studentPage.request.delete(`/api/admin/games/${game.id}`, { headers: { Origin: new URL(studentPage.url()).origin }, data: {} });
     expect(removeDenied.status()).toBe(403);
   } finally { await studentContext.close(); }
   await page.goto(`/admin/games/${game.id}`);
+  await expect(participantRow.getByText("Sudah Memilih", { exact: true })).toBeVisible();
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: /Export Hasil War/ }).click();
   const download = await downloading;
