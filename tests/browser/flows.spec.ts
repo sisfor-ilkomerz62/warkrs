@@ -247,10 +247,12 @@ test("Upcoming forbids ranking, Completed reload, offline recovery and keyboard 
   await expect(
     page.getByRole("status").filter({ hasText: "Offline" }),
   ).toBeVisible({ timeout: 10000 });
+  const resynchronized = page.waitForResponse(response =>
+    response.url().endsWith(`/api/games/${fixtures.upcoming.id}/snapshot`) && response.ok());
   await context.setOffline(false);
-  await expect(
-    page.getByRole("status").filter({ hasText: "Tersinkron" }),
-  ).toHaveCount(1, { timeout: 10000 });
+  await resynchronized;
+  await expect(page.getByRole("status").filter({ hasText: /Offline|Menyambung kembali/ })).toHaveCount(0);
+  await expect(page.getByText("Tersinkron dengan server", { exact: true })).toHaveCount(0);
   await page.goto(`/games/${fixtures.completed.id}`);
   await expect(page.getByText("War selesai", { exact: true })).toBeVisible();
   await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
@@ -888,7 +890,24 @@ test("session survives logo, home and login; explicit logout clears it", async (
   await expect(page).toHaveURL(/\/games$/);
   await page.goto("/login");
   await expect(page).toHaveURL(/\/games$/);
-  await page.getByRole("button", { name: "Keluar", exact: true }).click();
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.getByRole("button", { name: "Menu akun", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menuitem")).toHaveText(["Profil", "Keluar"]);
+    await page.getByRole("menuitem", { name: "Profil", exact: true }).click();
+    const profile = page.getByRole("dialog", { name: "Profil", exact: true });
+    await expect(profile).toContainText(fixtures.student.name);
+    await expect(profile).toContainText(fixtures.student.nim);
+    await expect(profile).toContainText(fixtures.student.email);
+    await expect(profile.locator("input")).toHaveCount(0);
+    await noOverflow(page);
+    await accessibility(page);
+    await page.keyboard.press("Escape");
+    await expect(profile).not.toBeVisible();
+  }
+  await page.getByRole("button", { name: "Menu akun", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Keluar", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/games");
   await expect(page).toHaveURL(/\/login$/);
@@ -1069,4 +1088,19 @@ test("student table sorts every data column by keyboard in both directions", asy
   }
   await page.setViewportSize({ width: 320, height: 568 });
   await noOverflow(page);
+});
+
+test("admin retains navigation when viewing student pages", async ({ page }) => {
+  await login(page, fixtures.admin);
+  await page.goto("/games");
+  await expect(page.getByRole("link", { name: "Admin", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Menu akun", exact: true }).click();
+  await expect(page.getByRole("menuitem")).toHaveText(["Profil", "Keluar"]);
+  await page.getByRole("menuitem", { name: "Profil", exact: true }).click();
+  const profile = page.getByRole("dialog", { name: "Profil", exact: true });
+  await expect(profile).toContainText(fixtures.admin.email);
+  await expect(profile).not.toContainText(fixtures.student.email);
+  await page.keyboard.press("Escape");
+  await page.getByRole("link", { name: "Admin", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin$/);
 });

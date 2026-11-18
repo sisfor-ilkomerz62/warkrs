@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { pageActor } from "@/lib/page-auth";
-import { Logout } from "@/components/domain/logout";
+import { StudentAccountMenu } from "@/components/domain/student-account-menu";
+import { getDb } from "@/db/client";
+import { user } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { invariant } from "@/lib/errors";
 import { Brand } from "@/components/domain/brand";
 import { Button } from "@/components/ui/button";
 export default async function Layout({
@@ -9,6 +13,11 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   const actor = await pageActor();
+  // Identity comes exclusively from the authenticated server session.
+  const [profile] = await getDb()
+    .select({ name: user.name, nim: user.nim, email: user.email })
+    .from(user).where(eq(user.id, actor.id));
+  invariant(profile, "UNAUTHENTICATED", "Silakan masuk terlebih dahulu.", 401);
   return (
     <div className="student-shell flex min-h-dvh flex-col">
       <header className="border-b border-primary/10 bg-card">
@@ -26,7 +35,7 @@ export default async function Layout({
                 <Link href="/admin">Admin</Link>
               </Button>
             )}
-            <Logout />
+            <StudentAccountMenu profile={profile} />
           </div>
         </div>
       </header>

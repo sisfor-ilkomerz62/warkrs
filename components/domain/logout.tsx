@@ -6,7 +6,7 @@ import { LogOut, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { api } from "@/lib/api-client";
-export function Logout({ sidebar = false }: { sidebar?: boolean }) {
+export function useLogout() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -23,6 +23,10 @@ export function Logout({ sidebar = false }: { sidebar?: boolean }) {
       setPending(false);
     }
   }
+  return { pending, error, logout };
+}
+export function Logout({ sidebar = false }: { sidebar?: boolean }) {
+  const { pending, error, logout } = useLogout();
   const content = (
     <>
       {pending ? (
