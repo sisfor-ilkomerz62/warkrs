@@ -6,6 +6,9 @@ import {
   LockKeyhole,
   Flag,
   UsersRound,
+  ListOrdered,
+  Layers3,
+  Activity as ActivityIcon,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,7 +131,8 @@ function Winners({ id, p }: { id: string; p: Snapshot["packages"][number] }) {
           <DialogTitle>{p.name}</DialogTitle>
           <DialogDescription>
             {p.allocated} dari {p.capacity} kuota teralokasi. Nama hanya
-            terlihat oleh peserta yang bergabung dan admin. NIM disamarkan jika ketentuan lama belum mencakupnya.
+            terlihat oleh peserta yang bergabung dan admin. NIM disamarkan jika
+            ketentuan lama belum mencakupnya.
           </DialogDescription>
         </DialogHeader>
         <Button
@@ -153,10 +157,19 @@ function Winners({ id, p }: { id: string; p: Snapshot["packages"][number] }) {
             {rows.map((r) => (
               <TableRow key={r.sequence}>
                 <TableCell>#{r.sequence}</TableCell>
-                <TableCell className="max-w-64 whitespace-normal">{r.name}</TableCell>
+                <TableCell className="max-w-64 whitespace-normal">
+                  {r.name}
+                </TableCell>
                 <TableCell>{r.nim ?? "—"}</TableCell>
                 <TableCell>{r.awardedRank}</TableCell>
-                <TableCell className="font-mono text-xs tabular-nums"><time dateTime={r.acceptedAt} title={jakartaPrecise(r.acceptedAt, true)}>{jakartaPrecise(r.acceptedAt)}</time></TableCell>
+                <TableCell className="font-mono text-xs tabular-nums">
+                  <time
+                    dateTime={r.acceptedAt}
+                    title={jakartaPrecise(r.acceptedAt, true)}
+                  >
+                    {jakartaPrecise(r.acceptedAt)}
+                  </time>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -219,32 +232,67 @@ export function LivePanels({
   snapshot,
   events,
   children,
+  student = false,
 }: {
   snapshot: Snapshot | null;
   events: Activity[];
   children: React.ReactNode;
+  student?: boolean;
 }) {
   const [visible, setVisible] = useState(100);
+  const tabClassName = `min-h-11 whitespace-normal px-1 text-xs font-medium data-active:shadow-none group-data-[variant=default]/tabs-list:data-active:shadow-none sm:px-3 sm:text-sm ${student ? "data-active:bg-primary data-active:text-primary-foreground" : "data-active:bg-accent data-active:text-primary"}`;
   return (
-    <Tabs defaultValue="main" className="min-w-0 gap-3">
-      <TabsList className="grid h-auto w-full grid-cols-3 group-data-horizontal/tabs:h-auto rounded-lg border bg-card p-1">
+    <Tabs
+      defaultValue="main"
+      className={`min-w-0 gap-3 ${student ? "student-live-panels" : ""}`}
+    >
+      <TabsList
+        className={`grid h-auto w-full grid-cols-3 group-data-horizontal/tabs:h-auto border p-1 ${student ? "rounded-xl border-primary/15 bg-accent" : "rounded-lg bg-card"}`}
+      >
         <TabsTrigger
-          className="min-h-11 whitespace-normal px-1 text-xs font-medium data-active:bg-accent data-active:text-primary data-active:shadow-none group-data-[variant=default]/tabs-list:data-active:shadow-none sm:px-3 sm:text-sm"
+          className={tabClassName}
+          aria-label="Tampilan Utama"
           value="main"
         >
-          Tampilan Utama
+          {student ? (
+            <>
+              <ListOrdered className="size-4" aria-hidden="true" />
+              <span className="sm:hidden">Utama</span>
+              <span className="hidden sm:inline">Tampilan Utama</span>
+            </>
+          ) : (
+            "Tampilan Utama"
+          )}
         </TabsTrigger>
         <TabsTrigger
-          className="min-h-11 whitespace-normal px-1 text-xs font-medium data-active:bg-accent data-active:text-primary data-active:shadow-none group-data-[variant=default]/tabs-list:data-active:shadow-none sm:px-3 sm:text-sm"
+          className={tabClassName}
+          aria-label="Daftar Paket"
           value="packages"
         >
-          Daftar Paket
+          {student ? (
+            <>
+              <Layers3 className="size-4" aria-hidden="true" />
+              <span className="sm:hidden">Paket</span>
+              <span className="hidden sm:inline">Daftar Paket</span>
+            </>
+          ) : (
+            "Daftar Paket"
+          )}
         </TabsTrigger>
         <TabsTrigger
-          className="min-h-11 whitespace-normal px-1 text-xs font-medium data-active:bg-accent data-active:text-primary data-active:shadow-none group-data-[variant=default]/tabs-list:data-active:shadow-none sm:px-3 sm:text-sm"
+          className={tabClassName}
+          aria-label="Log Aktivitas"
           value="events"
         >
-          Log Aktivitas
+          {student ? (
+            <>
+              <ActivityIcon className="size-4" aria-hidden="true" />
+              <span className="sm:hidden">Aktivitas</span>
+              <span className="hidden sm:inline">Log Aktivitas</span>
+            </>
+          ) : (
+            "Log Aktivitas"
+          )}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="main" className="space-y-5">
@@ -260,8 +308,17 @@ export function LivePanels({
         {snapshot ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {snapshot.packages.map((p) => (
-              <Card key={p.id} className="justify-between">
-                <CardHeader>
+              <Card
+                key={p.id}
+                className={`justify-between ${student ? "rounded-2xl border-primary/15 pt-0 shadow-sm" : ""}`}
+              >
+                <CardHeader
+                  className={
+                    student
+                      ? "border-b border-primary/10 bg-accent/40 pt-5"
+                      : undefined
+                  }
+                >
                   <div className="flex items-start justify-between gap-3">
                     <CardTitle>{p.name}</CardTitle>
                     {p.remaining === 0 && (
@@ -284,7 +341,13 @@ export function LivePanels({
                         / {p.capacity}
                       </span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p
+                      className={
+                        student
+                          ? "rounded-lg bg-accent px-2.5 py-1 text-sm font-medium text-primary"
+                          : "text-xs text-muted-foreground"
+                      }
+                    >
                       {p.remaining} tersisa
                     </p>
                   </div>
@@ -324,7 +387,7 @@ export function LivePanels({
           </span>
         </div>
         <div
-          className="max-h-[30rem] overflow-y-auto overscroll-contain rounded-lg border bg-card"
+          className={`max-h-[30rem] overflow-y-auto overscroll-contain border bg-card ${student ? "rounded-2xl shadow-sm" : "rounded-lg"}`}
           tabIndex={0}
           aria-label="Catatan aktivitas War"
         >
@@ -333,10 +396,27 @@ export function LivePanels({
               const view = eventPresentation(e);
               const Icon = view.icon;
               return (
-                <li key={e.id} className="flex flex-wrap items-start gap-x-2 gap-y-1 px-3 py-2 text-xs sm:flex-nowrap sm:items-center">
-                  <Icon className={`mt-0.5 size-4 shrink-0 ${view.tone}`} aria-label={view.label} />
-                  <p className="min-w-0 flex-1 break-words leading-5">{view.text} <span className="whitespace-nowrap text-muted-foreground">{e.sequence ? `#${e.sequence} · ` : ""}E{e.id}</span></p>
-                  <time className="ml-6 whitespace-nowrap font-mono text-[11px] tabular-nums text-muted-foreground sm:ml-auto" dateTime={e.createdAt} title={jakartaPrecise(e.createdAt, true)}>{jakartaPrecise(e.createdAt)}</time>
+                <li
+                  key={e.id}
+                  className={`flex flex-wrap items-start gap-x-2 gap-y-1 px-3 sm:flex-nowrap sm:items-center ${student ? "py-3 text-sm" : "py-2 text-xs"}`}
+                >
+                  <Icon
+                    className={`mt-0.5 size-4 shrink-0 ${view.tone}`}
+                    aria-label={view.label}
+                  />
+                  <p className="min-w-0 flex-1 break-words leading-5">
+                    {view.text}{" "}
+                    <span className="whitespace-nowrap text-muted-foreground">
+                      {e.sequence ? `#${e.sequence} · ` : ""}E{e.id}
+                    </span>
+                  </p>
+                  <time
+                    className="ml-6 whitespace-nowrap font-mono text-[11px] tabular-nums text-muted-foreground sm:ml-auto"
+                    dateTime={e.createdAt}
+                    title={jakartaPrecise(e.createdAt, true)}
+                  >
+                    {jakartaPrecise(e.createdAt)}
+                  </time>
                 </li>
               );
             })}

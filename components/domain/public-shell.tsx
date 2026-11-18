@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Brand } from "./brand";
 import { Button } from "@/components/ui/button";
-import { application } from "@/modules/platform";
 import { optionalPageActor, actorHome } from "@/lib/page-auth";
 export async function PublicShell({ children }: { children: React.ReactNode }) {
   const actor = await optionalPageActor();
@@ -23,7 +22,7 @@ export async function PublicShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <footer className="border-t px-5 py-5 text-center text-xs leading-relaxed text-muted-foreground">
-        <p className="mx-auto max-w-2xl">{application.boundary}</p>
+        <p>War KRS Ilkomerz 62</p>
       </footer>
     </div>
   );

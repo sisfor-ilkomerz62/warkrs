@@ -14,12 +14,18 @@ const appearance = {
   Closing: { icon: LockKeyhole, className: "bg-warning-subtle text-warning" },
   Completed: { icon: CheckCircle2, className: "bg-muted text-foreground" },
 };
-export function StatusBadge({ status }: { status: GameStatus }) {
+export function StatusBadge({
+  status,
+  student = false,
+}: {
+  status: GameStatus;
+  student?: boolean;
+}) {
   const { icon: Icon, className } = appearance[status];
   return (
     <Badge
       variant="secondary"
-      className={`gap-1.5 rounded-md px-2 py-1 font-medium ${className}`}
+      className={`shrink-0 gap-1.5 rounded-md px-2 py-1 font-medium ${student && status === "Live" ? "bg-primary text-primary-foreground" : className}`}
     >
       <Icon className="size-3.5" aria-hidden="true" />
       {statusLabel[status]}

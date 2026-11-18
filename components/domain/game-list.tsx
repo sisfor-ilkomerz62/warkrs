@@ -1,6 +1,13 @@
 import { WarVisibility } from "./game-management";
 import Link from "next/link";
-import { ArrowUpRight, ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  CheckCircle2,
+  CalendarClock,
+  Clock3,
+  Layers3,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +29,121 @@ import { StatusBadge } from "./status-badge";
 import type { listGames } from "@/modules/games/queries";
 import { jakarta } from "@/lib/time";
 type Games = Awaited<ReturnType<typeof listGames>>;
+const studentOrder = {
+  Live: 0,
+  Upcoming: 1,
+  Closing: 2,
+  Completed: 3,
+  Draft: 4,
+};
+
+function StudentGames({ games }: { games: Games }) {
+  if (!games.length)
+    return (
+      <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-accent to-card px-5 py-10 text-center">
+        <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <CalendarClock className="size-7" aria-hidden="true" />
+        </span>
+        <h2 className="text-lg font-semibold">Belum ada War</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          War untukmu akan muncul di sini.
+        </p>
+      </div>
+    );
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
+      {[...games]
+        .sort((a, b) => studentOrder[a.status] - studentOrder[b.status])
+        .map((g) => {
+          const live = g.status === "Live";
+          const upcoming = g.status === "Upcoming";
+          const completed = g.status === "Completed";
+          const action = completed
+            ? g.joinedAt
+              ? "Lihat hasil"
+              : "Lihat War"
+            : g.status === "Closing"
+              ? "Lihat perkembangan"
+              : live && g.joinedAt
+                ? "Masuk War"
+                : "Buka War";
+          return (
+            <Card
+              key={g.id}
+              className={`student-war-card justify-between gap-5 rounded-2xl pt-0 ${live ? "border-primary/35 shadow-md shadow-primary/10" : "border-border shadow-sm"}`}
+            >
+              <CardHeader
+                className={`gap-4 px-5 pb-5 pt-5 ${live ? "border-b border-primary/10 bg-gradient-to-br from-accent to-card" : upcoming ? "bg-accent/60" : "bg-muted/60"}`}
+              >
+                <StatusBadge status={g.status} student />
+                <CardTitle>
+                  <h2 className="text-lg leading-snug">{g.title}</h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-4 px-5">
+                <div className="flex items-start gap-3">
+                  <Clock3
+                    className={`mt-0.5 size-4 shrink-0 ${live || upcoming ? "text-primary" : "text-muted-foreground"}`}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">
+                      {upcoming
+                        ? "Mulai"
+                        : completed
+                          ? "Jadwal selesai"
+                          : "Batas pengiriman"}
+                    </p>
+                    <time
+                      className="text-sm font-medium leading-relaxed"
+                      dateTime={new Date(
+                        upcoming ? g.startsAt : g.endsAt,
+                      ).toISOString()}
+                    >
+                      {jakarta(upcoming ? g.startsAt : g.endsAt)}
+                    </time>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <Layers3 className="size-4" aria-hidden="true" />
+                    {g.packageCount} paket
+                  </span>
+                  {g.joinedAt ? (
+                    <span className="inline-flex items-center gap-1.5 text-success">
+                      <CheckCircle2 className="size-4" aria-hidden="true" />
+                      Bergabung
+                    </span>
+                  ) : !completed && g.status !== "Closing" ? (
+                    <span>Belum bergabung</span>
+                  ) : null}
+                </div>
+              </CardContent>
+              <CardFooter className="border-0 bg-transparent px-5 pb-5 pt-0">
+                <Button
+                  className="h-11 w-full justify-between"
+                  variant={
+                    completed || g.status === "Closing"
+                      ? "secondary"
+                      : "default"
+                  }
+                  asChild
+                >
+                  <Link
+                    href={`/games/${g.id}`}
+                    aria-label={`${action}: ${g.title}`}
+                  >
+                    {action}
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
+    </div>
+  );
+}
 export function GameList({
   games,
   admin = false,
@@ -29,6 +151,7 @@ export function GameList({
   games: Games;
   admin?: boolean;
 }) {
+  if (!admin) return <StudentGames games={games} />;
   if (!games.length)
     return (
       <EmptyState title="Belum ada War">
@@ -62,7 +185,11 @@ export function GameList({
                       {g.title}
                     </Link>
                     <StatusBadge status={g.status} />
-                    {g.isHidden && <p className="mt-1 text-xs text-muted-foreground">Disembunyikan</p>}
+                    {g.isHidden && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Disembunyikan
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="py-5 text-xs leading-6">
                     <span className="block">{jakarta(g.startsAt)}</span>
@@ -77,7 +204,11 @@ export function GameList({
                     {g.whitelistCount}
                   </TableCell>
                   <TableCell className="space-y-2 pr-6 text-right">
-                    {g.status !== "Draft" && <div><WarVisibility id={g.id} isHidden={g.isHidden} /></div>}
+                    {g.status !== "Draft" && (
+                      <div>
+                        <WarVisibility id={g.id} isHidden={g.isHidden} />
+                      </div>
+                    )}
                     <Button size="sm" variant="ghost" asChild>
                       <Link href={`/admin/games/${g.id}`}>
                         Buka
@@ -102,7 +233,9 @@ export function GameList({
           <Card key={g.id} className="justify-between shadow-none">
             <CardHeader className="gap-3">
               <StatusBadge status={g.status} />
-              {admin && g.isHidden && <p className="text-xs text-muted-foreground">Disembunyikan</p>}
+              {admin && g.isHidden && (
+                <p className="text-xs text-muted-foreground">Disembunyikan</p>
+              )}
               <CardTitle className="text-base font-semibold leading-relaxed">
                 {g.title}
               </CardTitle>
@@ -156,7 +289,9 @@ export function GameList({
               </dl>
             </CardContent>
             <CardFooter className="flex-col gap-2 bg-card">
-              {admin && g.status !== "Draft" && <WarVisibility id={g.id} isHidden={g.isHidden} />}
+              {admin && g.status !== "Draft" && (
+                <WarVisibility id={g.id} isHidden={g.isHidden} />
+              )}
               <Button
                 className="w-full justify-between"
                 variant="outline"

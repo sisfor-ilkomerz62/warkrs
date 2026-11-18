@@ -36,6 +36,8 @@ async function noOverflow(page: Page) {
   ).toBe(true);
 }
 async function accessibility(page: Page) {
+  // App Router metadata can finish streaming after a navigation redirect.
+  await expect(page).toHaveTitle(/\S/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
@@ -51,11 +53,16 @@ async function accessibility(page: Page) {
 }
 async function join(page: Page) {
   await expect(page.getByRole("button", { name: "Gabung War" })).toBeDisabled();
+  await expect(page.getByRole("checkbox")).not.toBeChecked();
   await page.getByRole("checkbox").check();
+  const joining = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/join"));
   await page.getByRole("button", { name: "Gabung War" }).click();
-  await expect(
-    page.getByText("Anda sudah bergabung dan menyetujui ketentuan War."),
-  ).toBeAttached();
+  const joined = await joining;
+  expect(joined.ok()).toBe(true);
+  expect(joined.request().postDataJSON().accepted).toBe(true);
+  expect(joined.request().postDataJSON().acceptedTermsVersion).toBeTruthy();
+  await expect(page.getByRole("button", { name: "Gabung War" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Tampilan Utama", exact: true })).toBeVisible();
 }
 async function rank(page: Page) {
   await page.getByRole("button", { name: /\+ Paket A/ }).click();
@@ -80,6 +87,10 @@ test("activation once, Indonesian login and protected routes", async ({
   await expect(page.getByText("Kata sandi tersimpan. Silakan masuk.")).toBeVisible();
   await accessibility(page);
   await login(page, fixtures.inactive);
+  await expect(page.getByRole("heading", { name: "Belum ada War" })).toBeVisible();
+  await noOverflow(page);
+  await accessibility(page);
+  await page.screenshot({ path: ".test-artifacts/student-empty.png", fullPage: true });
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/games$/);
 });
@@ -87,6 +98,14 @@ for (const width of [320, 375, 768, 1024, 1440])
   test(`critical student journey at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 850 });
     await login(page);
+    await noOverflow(page);
+    await accessibility(page);
+    await expect(page.locator("footer")).toHaveText("War KRS Ilkomerz 62");
+    // Actionable Live cards precede Upcoming and historical games for students.
+    const cards = page.locator(".student-war-card");
+    await expect(cards.first()).toContainText("Berlangsung");
+    await expect(cards.last()).toContainText("Selesai");
+    await page.screenshot({ path: `.test-artifacts/student-list-${width}.png`, fullPage: true });
     const f = fixtures.live.find((x: { width: number }) => x.width === width);
     await page.goto(`/games/${f.game.id}`);
     await expect(
@@ -95,17 +114,63 @@ for (const width of [320, 375, 768, 1024, 1440])
     await noOverflow(page);
     await accessibility(page);
     await join(page);
+    await page.getByRole("button", { name: "Informasi dan jadwal War" }).click();
+    await expect(page.getByRole("dialog", { name: "Jadwal War" })).toContainText("Mulai");
+    await noOverflow(page);
+    await accessibility(page);
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("tab", { name: "Tampilan Utama", exact: true })).toHaveAttribute("aria-selected", "true");
     const picker = await page.getByRole("button", { name: /\+ Paket A/ }).boundingBox();
     expect(picker!.y).toBeLessThan(560);
     await rank(page);
+    await expect(page.getByRole("button", { name: "Pilihan 1: Paket A" })).toBeDisabled();
+    await page.getByRole("button", { name: "Hapus pilihan 2" }).click();
+    await expect(page.getByRole("button", { name: "Kirim urutan paket" })).toBeDisabled();
+    await page.getByRole("button", { name: /\+ Paket B/ }).click();
+    const review = await page.getByRole("heading", { name: "Tinjau prioritas" }).boundingBox();
+    const send = await page.getByRole("button", { name: "Kirim urutan paket" }).boundingBox();
+    expect(review!.y).toBeLessThan(send!.y);
+    await noOverflow(page);
+    await accessibility(page);
     await page.screenshot({
       path: `.test-artifacts/redesign-ranking-${width}.png`,
       fullPage: true,
     });
     await page.getByRole("button", { name: "Naikkan pilihan 2" }).click();
     await page.getByRole("button", { name: "Turunkan pilihan 1" }).click();
+    if (width === 320) {
+      await page.context().setOffline(true);
+      await expect(page.getByRole("status").filter({ hasText: "Offline" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Kirim urutan paket" })).toBeDisabled();
+      await page.screenshot({ path: ".test-artifacts/student-live-offline-320.png", fullPage: true });
+      await page.context().setOffline(false);
+      await expect(page.getByRole("button", { name: "Kirim urutan paket" })).toBeEnabled();
+      await page.route(`**/api/games/${f.game.id}/submissions`, (route) => route.fulfill({ status: 503, json: { error: { message: "Pengiriman uji belum diterima. Coba kembali." } } }), { times: 1 });
+      await page.getByRole("button", { name: "Kirim urutan paket" }).click();
+      await expect(page.getByRole("status").filter({ hasText: "Pengiriman uji belum diterima" })).toBeVisible();
+      await expect(page.getByText("Alokasi Anda diterima")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Kirim urutan paket" })).toBeEnabled();
+    }
+    if (width === 375) {
+      // The server commits but the response is lost: recovery must show that same result.
+      await page.route(`**/api/games/${f.game.id}/submissions`, async (route) => {
+        await route.fetch();
+        await route.abort("failed");
+      }, { times: 1 });
+    }
+    let releaseSubmission: (() => void) | undefined;
+    if (width === 768) {
+      await page.route(`**/api/games/${f.game.id}/submissions`, async (route) => {
+        await new Promise<void>((resolve) => { releaseSubmission = resolve; });
+        await route.continue();
+      }, { times: 1 });
+    }
     await page.getByRole("button", { name: "Kirim urutan paket" }).click();
+    if (width === 768) {
+      await expect(page.getByRole("button", { name: "Menunggu server…" })).toBeDisabled();
+      await expect(page.getByText("Alokasi Anda diterima")).toHaveCount(0);
+      releaseSubmission!();
+    }
     await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
     await page.reload();
     await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
@@ -153,6 +218,8 @@ test("Upcoming forbids ranking, Completed reload, offline recovery and keyboard 
     page.getByRole("button", { name: "Kirim urutan paket" }),
   ).toHaveCount(0);
   await noOverflow(page);
+  await accessibility(page);
+  await page.screenshot({ path: ".test-artifacts/student-upcoming-320.png", fullPage: true });
   await context.setOffline(true);
   await expect(
     page.getByRole("status").filter({ hasText: "Offline" }),
@@ -160,7 +227,7 @@ test("Upcoming forbids ranking, Completed reload, offline recovery and keyboard 
   await context.setOffline(false);
   await expect(
     page.getByRole("status").filter({ hasText: "Tersinkron" }),
-  ).toBeVisible({ timeout: 10000 });
+  ).toHaveCount(1, { timeout: 10000 });
   await page.goto(`/games/${fixtures.completed.id}`);
   await expect(page.getByText("War selesai", { exact: true })).toBeVisible();
   await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
@@ -170,6 +237,21 @@ test("Upcoming forbids ranking, Completed reload, offline recovery and keyboard 
   await page.keyboard.press("Enter");
   await noOverflow(page);
   await accessibility(page);
+  // Closing is normally instantaneous with the atomic allocator. Exercise its
+  // read-only UI using a simulated snapshot while preserving the saved result.
+  await page.route(`**/api/games/${fixtures.completed.id}/snapshot`, async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    payload.data.game.status = "Closing";
+    await route.fulfill({ response, json: payload });
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "War sedang ditutup" })).toBeVisible();
+  await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Kirim urutan paket" })).toHaveCount(0);
+  await noOverflow(page);
+  await accessibility(page);
+  await page.screenshot({ path: ".test-artifacts/student-closing-320.png", fullPage: true });
 });
 test("admin editor and confirmed End War at mobile widths", async ({
   page,
